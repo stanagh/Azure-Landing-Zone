@@ -100,8 +100,8 @@ resource "azurerm_virtual_network" "network_vnet" {
 
 resource "azurerm_network_security_group" "network_nsg" {
   name                = "hub-nsg"
-  location            = azurerm_resource_group.azurerm_network_security_group.location
-  resource_group_name = azurerm_resource_group.azurerm_network_security_group.name
+  location            = azurerm_resource_group.network_rg.location
+  resource_group_name = azurerm_resource_group.network_rg.name
 }
 
 resource "azurerm_application_security_group" "network_asg" {
@@ -191,6 +191,10 @@ resource "azurerm_app_service" "app_service_webapp" {
   location            = azurerm_resource_group.network_rg.location
   resource_group_name = azurerm_resource_group.app_rg.name
   app_service_plan_id = azurerm_app_service_plan.app_service_plan.id
+
+    site_config {
+    linux_fx_version = "DOTNETCORE|6.0" 
+  }
 }
 
 
