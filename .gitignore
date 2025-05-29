@@ -5,3 +5,6 @@ environmentvariables.ps1
 terraform.tfvars
 .terraform
 terraform.tfstate.backup
+
+
+

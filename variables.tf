@@ -9,3 +9,7 @@ variable "tenant_id" {
 variable "object_id" {
   type = string
 }
+
+variable "subscription_id" {
+  type = string
+}
