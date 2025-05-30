@@ -95,7 +95,14 @@ resource "azurerm_virtual_network" "network_vnet" {
   name                = "vnet-hub-uks"
   location            = azurerm_resource_group.network_rg.location
   resource_group_name = azurerm_resource_group.network_rg.name
-  address_space       = ["10.0.0.0/16"]
+  address_space       = ["10.5.0.0/16"]
+}
+
+resource "azurerm_virtual_network_peering" "network_peering-1" {
+  name                      = "hub-spoke"
+  resource_group_name       = azurerm_resource_group.network_rg.name
+  virtual_network_name      = azurerm_virtual_network.network_vnet.name
+  remote_virtual_network_id = azurerm_virtual_network.app_vnet.id
 }
 
 resource "azurerm_network_security_group" "network_nsg" {
@@ -114,7 +121,7 @@ resource "azurerm_subnet" "network_firewall_subnet" {
   name                 = "AzureFirewallSubnet"
   resource_group_name  = azurerm_resource_group.network_rg.name
   virtual_network_name = azurerm_virtual_network.network_vnet.name
-  address_prefixes     = ["10.0.1.0/24"]
+  address_prefixes     = ["10.5.1.0/24"]
 }
 
 resource "azurerm_public_ip" "network_ip" {
@@ -122,7 +129,7 @@ resource "azurerm_public_ip" "network_ip" {
   location            = azurerm_resource_group.network_rg.location
   resource_group_name = azurerm_resource_group.network_rg.name
   allocation_method   = "Static"
-  sku                 = "Standard"
+  sku                 = "Basic"
 }
 
 resource "azurerm_firewall" "network_firewall" {
@@ -134,10 +141,47 @@ resource "azurerm_firewall" "network_firewall" {
 
   ip_configuration {
     name                 = "IPconfig"
-    subnet_id            = azurerm_subnet.network_firewall_subnet
-    public_ip_address_id = azurerm_public_ip.network_ip
+    subnet_id            = azurerm_subnet.network_firewall_subnet.id
+    public_ip_address_id = azurerm_public_ip.network_ip.id
   }
 }
+
+resource "azurerm_firewall_network_rule_collection" "network_firewwall_rule" {
+  name                = "NetRules-Allow"
+  azure_firewall_name = azurerm_firewall.network_firewall.name
+  resource_group_name = azurerm_resource_group.network_rg.name
+  priority            = 100
+  action              = "Allow"
+
+  rule {
+    name                  = "testrule"
+    source_addresses      = ["*"]
+    destination_ports     = ["443"]
+    destination_addresses = ["10.0.1.0/24"]
+    protocols             = ["TCP"]
+  }
+}
+
+resource "azurerm_route_table" "app_udr" {
+  name                = "rt-app-to-firewall"
+  location            = var.location
+  resource_group_name = azurerm_resource_group.network_rg.name
+}
+
+resource "azurerm_route" "app_to_fw_default" {
+  name                    = "default-to-fw"
+  resource_group_name     = azurerm_resource_group.network_rg.name
+  route_table_name        = azurerm_route_table.app_udr.name
+  address_prefix          = "0.0.0.0/0"
+  next_hop_type           = "VirtualAppliance"
+  next_hop_in_ip_address  = azurerm_firewall.network_firewall.ip_configuration[0].private_ip_address
+}
+
+resource "azurerm_subnet_route_table_association" "app_subnet_udr_association" {
+  subnet_id      = azurerm_subnet.app_vnet_subnet.id
+  route_table_id = azurerm_route_table.app_udr.id
+}
+
 
 resource "azurerm_private_dns_zone" "example" {
   name                = "internal.stanagh.com"
@@ -151,22 +195,6 @@ resource "azurerm_private_dns_zone_virtual_network_link" "network_vnet_link" {
   virtual_network_id    = azurerm_virtual_network.network_vnet.id
 }
 
-resource "azurerm_firewall_network_rule_collection" "network_firewwall_rule" {
-  name                = "NetRules-Allow"
-  azure_firewall_name = azurerm_firewall.network_firewall.name
-  resource_group_name = azurerm_resource_group.network_rg.name
-  priority            = 100
-  action              = "Allow"
-
-  rule {
-    name = "testrule"
-    source_addresses = ["*"]
-    destination_ports = ["443"]
-    destination_addresses = ["10.0.1.0/24"]
-    protocols = ["TCP"]
-  }
-}
-
 #### application layer
 
 resource "azurerm_resource_group" "app_rg" {
@@ -175,26 +203,66 @@ resource "azurerm_resource_group" "app_rg" {
 }
 
 
-resource "azurerm_app_service_plan" "app_service_plan" {
-  name                = "project-appserviceplan"
-  location            = azurerm_resource_group.app_rg.location
+resource "azurerm_virtual_network" "app_vnet" {
+  name                = "example-virtual-network"
+  address_space       = ["10.0.0.0/16"]
+  location            = azurerm_resource_group.app_rg.location 
   resource_group_name = azurerm_resource_group.app_rg.name
+}
 
-  sku {
-    tier = "Standard"
-    size = "F1"
+resource "azurerm_subnet" "app_vnet_subnet" {
+  name                 = "app-subnet"
+  resource_group_name  = azurerm_resource_group.app_rg.name
+  virtual_network_name = azurerm_virtual_network.app_vnet.name
+  address_prefixes     = ["10.0.1.0/24"]
+
+  delegation {
+    name = "private-vnet-delegation"
+
+    service_delegation {
+      name    = "Microsoft.Web/serverFarms"
+      actions = ["Microsoft.Network/virtualNetworks/subnets/action"]
+    }
   }
 }
 
-resource "azurerm_app_service" "app_service_webapp" {
-  name                = "project-appservice"
-  location            = azurerm_resource_group.network_rg.location
+resource "azurerm_service_plan" "app_service_plan" {
+  name                = "example-app-service-plan"
   resource_group_name = azurerm_resource_group.app_rg.name
-  app_service_plan_id = azurerm_app_service_plan.app_service_plan.id
+  location            = azurerm_resource_group.app_rg.location
+  os_type             = "Linux"
+  sku_name            = "S1"
+}
 
-    site_config {
-    linux_fx_version = "DOTNETCORE|6.0" 
+resource "azurerm_linux_web_app" "app_service_webapp" {
+  name                = "project-web-app"
+  resource_group_name = azurerm_resource_group.app_rg.name
+  location            = azurerm_service_plan.app_service_plan.location
+  service_plan_id     = azurerm_service_plan.app_service_plan.id
+  depends_on          = [azurerm_service_plan.app_service_plan]
+  site_config {
+    application_stack {
+      dotnet_version = "6.0"
+    }
   }
+}
+
+resource "azurerm_app_service_virtual_network_swift_connection" "app_vnet_intergration" {
+  app_service_id = azurerm_linux_web_app.app_service_webapp.id
+  subnet_id      = azurerm_subnet.app_vnet_subnet.id
+}
+
+resource "azurerm_virtual_network_peering" "app_peering-2" {
+  name                      = "spoke-hub"
+  resource_group_name       = azurerm_resource_group.app_rg.name
+  virtual_network_name      = azurerm_virtual_network.app_vnet.name
+  remote_virtual_network_id = azurerm_virtual_network.network_vnet.id
+}
+
+resource "azurerm_network_security_group" "app_nsg" {
+  name                = "app-vnet-nsg"
+  location            = azurerm_resource_group.app_rg.location
+  resource_group_name = azurerm_resource_group.app_rg.name
 }
 
 
