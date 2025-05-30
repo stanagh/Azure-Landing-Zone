@@ -195,13 +195,18 @@ resource "azurerm_private_dns_zone_virtual_network_link" "network_vnet_link" {
   virtual_network_id    = azurerm_virtual_network.network_vnet.id
 }
 
+resource "azurerm_network_watcher" "network_watcher" {
+  name                = "production-nwwatcher"
+  location            = azurerm_resource_group.network_rg.location
+  resource_group_name = azurerm_resource_group.network_rg.name
+}
+
 #### application layer
 
 resource "azurerm_resource_group" "app_rg" {
   name     = "rg-application-prod-uks"
   location = var.location
 }
-
 
 resource "azurerm_virtual_network" "app_vnet" {
   name                = "example-virtual-network"
@@ -265,6 +270,7 @@ resource "azurerm_network_security_group" "app_nsg" {
   resource_group_name = azurerm_resource_group.app_rg.name
 }
 
+### backend
 
 
 
