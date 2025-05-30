@@ -13,3 +13,14 @@ variable "object_id" {
 variable "subscription_id" {
   type = string
 }
+
+variable "sql_admin_password" {
+  type      = string
+  sensitive = true
+}
+
+variable "administrator_login" {
+  type = string
+}
+
+

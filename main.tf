@@ -6,11 +6,11 @@ resource "azurerm_resource_group" "identity_rg" {
 
 
 resource "azurerm_key_vault" "identity_kv" {
-  name                = "examplekeyvault"
+  name                = "identitykeyvault"
   location            = var.location
   resource_group_name = azurerm_resource_group.identity_rg.name
   tenant_id           = var.tenant_id
-  sku_name            = "premium"
+  sku_name            = "standard"
 }
 
 resource "azurerm_key_vault_access_policy" "identity_policy" {
@@ -20,16 +20,16 @@ resource "azurerm_key_vault_access_policy" "identity_policy" {
   depends_on   = [azurerm_key_vault.identity_kv]
 
   key_permissions = [
-    "Get",
+    "Get", "List"
   ]
 
   secret_permissions = [
-    "Get",
+    "Get", "List"
   ]
 }
 
 resource "azurerm_policy_definition" "identity_policy" {
-  name         = "App service SKU restrict"
+  name         = "deny-non-premium-appservice"
   policy_type  = "Custom"
   mode         = "All"
   display_name = "This policy is set to allow App services creation of a certain SKU"
@@ -44,7 +44,7 @@ resource "azurerm_policy_definition" "identity_policy" {
       },
       {
         "field": "Microsoft.Web/serverFarms/sku.name",
-        "equals": "F1"
+        "notIn": ["P1", "P2"]
       }
     ]
   },
@@ -103,6 +103,7 @@ resource "azurerm_virtual_network_peering" "network_peering-1" {
   resource_group_name       = azurerm_resource_group.network_rg.name
   virtual_network_name      = azurerm_virtual_network.network_vnet.name
   remote_virtual_network_id = azurerm_virtual_network.app_vnet.id
+  depends_on                = [azurerm_virtual_network.network_vnet]
 }
 
 resource "azurerm_network_security_group" "network_nsg" {
@@ -129,7 +130,6 @@ resource "azurerm_public_ip" "network_ip" {
   location            = azurerm_resource_group.network_rg.location
   resource_group_name = azurerm_resource_group.network_rg.name
   allocation_method   = "Static"
-  sku                 = "Basic"
 }
 
 resource "azurerm_firewall" "network_firewall" {
@@ -152,12 +152,13 @@ resource "azurerm_firewall_network_rule_collection" "network_firewwall_rule" {
   resource_group_name = azurerm_resource_group.network_rg.name
   priority            = 100
   action              = "Allow"
+  depends_on          = [azurerm_firewall.network_firewall]
 
   rule {
     name                  = "testrule"
     source_addresses      = ["*"]
     destination_ports     = ["443"]
-    destination_addresses = ["10.0.1.0/24"]
+    destination_addresses = ["10.5.1.0/24"]
     protocols             = ["TCP"]
   }
 }
@@ -169,12 +170,12 @@ resource "azurerm_route_table" "app_udr" {
 }
 
 resource "azurerm_route" "app_to_fw_default" {
-  name                    = "default-to-fw"
-  resource_group_name     = azurerm_resource_group.network_rg.name
-  route_table_name        = azurerm_route_table.app_udr.name
-  address_prefix          = "0.0.0.0/0"
-  next_hop_type           = "VirtualAppliance"
-  next_hop_in_ip_address  = azurerm_firewall.network_firewall.ip_configuration[0].private_ip_address
+  name                   = "default-to-fw"
+  resource_group_name    = azurerm_resource_group.network_rg.name
+  route_table_name       = azurerm_route_table.app_udr.name
+  address_prefix         = "0.0.0.0/0"
+  next_hop_type          = "VirtualAppliance"
+  next_hop_in_ip_address = azurerm_firewall.network_firewall.ip_configuration[0].private_ip_address
 }
 
 resource "azurerm_subnet_route_table_association" "app_subnet_udr_association" {
@@ -211,7 +212,7 @@ resource "azurerm_resource_group" "app_rg" {
 resource "azurerm_virtual_network" "app_vnet" {
   name                = "example-virtual-network"
   address_space       = ["10.0.0.0/16"]
-  location            = azurerm_resource_group.app_rg.location 
+  location            = azurerm_resource_group.app_rg.location
   resource_group_name = azurerm_resource_group.app_rg.name
 }
 
@@ -255,6 +256,7 @@ resource "azurerm_linux_web_app" "app_service_webapp" {
 resource "azurerm_app_service_virtual_network_swift_connection" "app_vnet_intergration" {
   app_service_id = azurerm_linux_web_app.app_service_webapp.id
   subnet_id      = azurerm_subnet.app_vnet_subnet.id
+  depends_on     = [azurerm_subnet.app_vnet_subnet]
 }
 
 resource "azurerm_virtual_network_peering" "app_peering-2" {
@@ -262,6 +264,7 @@ resource "azurerm_virtual_network_peering" "app_peering-2" {
   resource_group_name       = azurerm_resource_group.app_rg.name
   virtual_network_name      = azurerm_virtual_network.app_vnet.name
   remote_virtual_network_id = azurerm_virtual_network.network_vnet.id
+  depends_on                = [azurerm_virtual_network.app_vnet]
 }
 
 resource "azurerm_network_security_group" "app_nsg" {
@@ -270,7 +273,41 @@ resource "azurerm_network_security_group" "app_nsg" {
   resource_group_name = azurerm_resource_group.app_rg.name
 }
 
+resource "azurerm_subnet_network_security_group_association" "app_vnet_association" {
+  subnet_id                 = azurerm_subnet.app_vnet_subnet.id
+  network_security_group_id = azurerm_network_security_group.app_nsg.id
+}
+
+
 ### backend
+
+resource "azurerm_mssql_server" "app_sql_server" {
+  name                         = "app-sqlserver"
+  resource_group_name          = azurerm_resource_group.app_rg.name
+  location                     = azurerm_resource_group.app_rg.location
+  version                      = "12.0"
+  administrator_login          = var.administrator_login
+  administrator_login_password = var.sql_admin_password
+}
+
+resource "azurerm_mssql_database" "app_sql_db" {
+  name         = "example-db"
+  server_id    = azurerm_mssql_server.app_sql_server.id
+  collation    = "SQL_Latin1_General_CP1_CI_AS"
+  license_type = "LicenseIncluded"
+  max_size_gb  = 2
+  sku_name     = "S0"
+  enclave_type = "VBS"
+  depends_on   = [azurerm_mssql_server.app_sql_server]
+
+
+  # prevent the possibility of accidental data loss
+  lifecycle {
+    prevent_destroy = true
+  }
+}
+
+
 
 
 
