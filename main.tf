@@ -32,7 +32,7 @@ resource "azurerm_policy_definition" "identity_policy" {
   name         = "deny-non-premium-appservice"
   policy_type  = "Custom"
   mode         = "All"
-  display_name = "This policy is set to allow App services creation of a certain SKU"
+  display_name = "This policy is set to deny App services creation of a certain SKU"
 
   policy_rule = <<POLICY_RULE
 {
