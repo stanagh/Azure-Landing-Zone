@@ -12,13 +12,14 @@ stages:
             displayName: Terraform init - initialises directory
             inputs:
               provider: "azurerm"
-              command: "init"
+              command: Terraform init
               backendServiceArm: "Azure subscription 1(0ec12c70-aa89-447d-8f82-8d454c6173b4)"
               backendAzureRmOverrideSubscriptionID: "0ec12c70-aa89-447d-8f82-8d454c6173b4"
               backendAzureRmResourceGroupName: "rg-storage-uksouth"
               backendAzureRmStorageAccountName: "storagestatefile001"
               backendAzureRmContainerName: "tfstate"
               backendAzureRmKey: "terraform.tfstate"
+              
           - task: TerraformTask@5
             displayName: Tf validate - check if the configuration is correct
             inputs:
