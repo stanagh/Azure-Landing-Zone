@@ -1,0 +1,57 @@
+trigger:
+  - main
+
+stages:
+  - stage: Build
+    jobs:
+      - job: Build
+        pool:
+          vmImage: "ubuntu-latest"
+        steps:
+          - task: TerraformTask@5
+            displayName: Terraform init - initialises directory
+            inputs:
+              provider: "azurerm"
+              command: "init"
+              backendServiceArm: "Azure subscription 1(0ec12c70-aa89-447d-8f82-8d454c6173b4)"
+              backendAzureRmOverrideSubscriptionID: "0ec12c70-aa89-447d-8f82-8d454c6173b4"
+              backendAzureRmResourceGroupName: "rg-storage-uksouth"
+              backendAzureRmStorageAccountName: "storagestatefile001"
+              backendAzureRmContainerName: "tfstate"
+              backendAzureRmKey: "terraform.tfstate"
+          - task: TerraformTask@5
+            displayName: Tf validate - check if the configuration is correct
+            inputs:
+              provider: "azurerm"
+              command: "validate"
+
+          - task: TerraformTask@5
+            displayName: Terraform fmt - formats the code
+            inputs:
+              provider: "azurerm"
+              command: "custom"
+              outputTo: "console"
+              customCommand: "fmt"
+              environmentServiceNameAzureRM: "Azure subscription 1(0ec12c70-aa89-447d-8f82-8d454c6173b4)"
+
+          - task: TerraformTask@5
+            displayName: Terraform plan - displays changes prior execution
+            inputs:
+              provider: "azurerm"
+              commandOptions: "-out $(Build.SourcesDirectory)/tfplanfile"
+              command: "plan"
+          - task: ArchiveFiles@2
+            displayName: Archive files - compress files into a zip folder
+            inputs:
+              rootFolderOrFile: "$(Build.SourcesDirectory)"
+              includeRootFolder: true
+              archiveType: "zip"
+              archiveFile: "$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip"
+              replaceExistingArchive: true
+
+          - task: PublishBuildArtifacts@1
+            displayName: Publish - uploads zip folder to artifacts
+            inputs:
+              PathtoPublish: "$(Build.ArtifactStagingDirectory)"
+              ArtifactName: "$(Build.BuildId)-build"
+              publishLocation: "Container"
