@@ -278,6 +278,24 @@ resource "azurerm_subnet_network_security_group_association" "app_vnet_associati
   network_security_group_id = azurerm_network_security_group.app_nsg.id
 }
 
+## app monitoring
+
+resource "azurerm_application_insights" "app_insights" {
+  name                = "web-app-insights"
+  location            = azurerm_resource_group.app_rg.location
+  resource_group_name = azurerm_resource_group.app_rg.name
+  application_type    = "web"
+  depends_on          = [azurerm_linux_web_app.app_service_webapp]
+}
+
+output "instrumentation_key" {
+  value = azurerm_application_insights.app_insights.instrumentation_key
+}
+
+output "app_id" {
+  value = azurerm_application_insights.app_insights.app_id
+}
+
 
 ### backend
 
