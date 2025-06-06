@@ -11,6 +11,12 @@ resource "azurerm_key_vault" "identity_kv" {
   resource_group_name = azurerm_resource_group.identity_rg.name
   tenant_id           = var.tenant_id
   sku_name            = "standard"
+
+  network_acls {
+    default_action = [deny]
+    bypass         = "AzureServices"
+  }
+
 }
 
 resource "azurerm_key_vault_access_policy" "identity_policy" {
