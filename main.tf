@@ -309,7 +309,7 @@ resource "azurerm_mssql_server" "app_sql_server" {
 }
 
 resource "azurerm_mssql_database" "app_sql_db" {
-  name         = "example-db"
+  name         = "app-db"
   server_id    = azurerm_mssql_server.app_sql_server.id
   collation    = "SQL_Latin1_General_CP1_CI_AS"
   license_type = "LicenseIncluded"

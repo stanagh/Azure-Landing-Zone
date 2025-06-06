@@ -24,7 +24,7 @@ stages:
             displayName: Tf validate - check if the configuration is correct
             inputs:
               provider: "azurerm"
-              command: "validate"
+              command: "validate"s
 
           - task: TerraformTask@5
             displayName: Terraform fmt - formats the code
