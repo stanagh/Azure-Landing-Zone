@@ -6,6 +6,6 @@ terraform.tfvars
 .terraform
 terraform.tfstate.backup
 checknov/
-
-
+trivy_scan_log.png 
+checkov_scan_log.png
 
