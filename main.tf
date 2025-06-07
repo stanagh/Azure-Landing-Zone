@@ -13,8 +13,10 @@ resource "azurerm_key_vault" "identity_kv" {
   sku_name            = "standard"
 
   network_acls {
-    default_action = [deny]
+    default_action = "deny"
     bypass         = "AzureServices"
+
+    virtual_network_subnet_ids = [azurerm_subnet.app_vnet_subnet.id]
   }
 
 }
@@ -91,7 +93,6 @@ resource "azurerm_log_analytics_workspace" "management_log" {
 
 
 ## network 
-
 resource "azurerm_resource_group" "network_rg" {
   name     = "rg-network-prod-uks"
   location = var.location
@@ -293,15 +294,6 @@ resource "azurerm_application_insights" "app_insights" {
   application_type    = "web"
   depends_on          = [azurerm_linux_web_app.app_service_webapp]
 }
-
-output "instrumentation_key" {
-  value = azurerm_application_insights.app_insights.instrumentation_key
-}
-
-output "app_id" {
-  value = azurerm_application_insights.app_insights.app_id
-}
-
 
 ### backend
 
