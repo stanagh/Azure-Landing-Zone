@@ -9,7 +9,7 @@ stages:
           vmImage: "ubuntu-latest"
         steps:
           - checkout: self
-          
+
           - task: TerraformInstaller@1
             inputs:
               terraformVersion: 'latest'
@@ -27,7 +27,7 @@ stages:
               ignoreScanErrors: true
 
           - task: TerraformTask@5
-            displayName: Terraform init
+            displayName: tf init
             inputs:
               provider: "azurerm"
               command: "init"
@@ -54,7 +54,7 @@ stages:
               environmentServiceNameAzureRM: "Azure subscription 1(0ec12c70-aa89-447d-8f82-8d454c6173b4)"
 
           - task: TerraformTask@5
-            displayName: Terraform plan
+            displayName: tf plan
             inputs:
               provider: "azurerm"
               commandOptions: "-out $(Build.SourcesDirectory)/tfplanfile"
