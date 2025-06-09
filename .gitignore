@@ -4,6 +4,7 @@ environmentvariables.ps1
 .terraform.lock.hcl
 terraform.tfvars
 .terraform
+terraform.tfstate
 terraform.tfstate.backup
 checknov/
 trivy_scan_log.png 
