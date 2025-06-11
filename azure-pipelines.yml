@@ -9,12 +9,10 @@ stages:
           vmImage: "ubuntu-latest"
         steps:
           - checkout: self
-
           - task: TerraformInstaller@1
             inputs:
               terraformVersion: 'latest'
               displayName: Terraform installer
-
           - task: trivy@2
             displayName: Trivy scan vulnerability installer
             inputs:
@@ -25,25 +23,21 @@ stages:
               ignoreUnfixed: true
               showSuppressed: true
               ignoreScanErrors: true
-
           - task: TerraformTask@5
-            displayName: tf init
             inputs:
-              provider: "azurerm"
-              command: "init"
-              backendServiceArm: "Azure subscription 1(0ec12c70-aa89-447d-8f82-8d454c6173b4)"
-              backendAzureRmOverrideSubscriptionID: "0ec12c70-aa89-447d-8f82-8d454c6173b4"
-              backendAzureRmResourceGroupName: "rg-storage-uksouth"
-              backendAzureRmStorageAccountName: "storagestatefile001"
-              backendAzureRmContainerName: "tfstate"
-              backendAzureRmKey: "terraform.tfstate"
-
+              provider: 'azurerm'
+              command: 'init'
+              backendServiceArm: 'Azure subscription 1(0ec12c70-aa89-447d-8f82-8d454c6173b4)'
+              backendAzureRmOverrideSubscriptionID: '0ec12c70-aa89-447d-8f82-8d454c6173b4'
+              backendAzureRmResourceGroupName: 'rg-storage-uksouth'
+              backendAzureRmStorageAccountName: 'storagestatefile001'
+              backendAzureRmContainerName: 'tfstate'
+              backendAzureRmKey: 'terraform.tfstate'
           - task: TerraformTask@5
             displayName: Tf validate
             inputs:
               provider: "azurerm"
               command: "validate"
-
           - task: TerraformTask@5
             displayName: Terraform fmt
             inputs:
@@ -52,14 +46,12 @@ stages:
               outputTo: "console"
               customCommand: "fmt"
               environmentServiceNameAzureRM: "Azure subscription 1(0ec12c70-aa89-447d-8f82-8d454c6173b4)"
-
           - task: TerraformTask@5
             displayName: tf plan
             inputs:
               provider: "azurerm"
               commandOptions: "-out $(Build.SourcesDirectory)/tfplanfile"
               command: "plan"
-
           - task: ArchiveFiles@2
             displayName: Archive files
             inputs:
@@ -68,7 +60,6 @@ stages:
               archiveType: "zip"
               archiveFile: "$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip"
               replaceExistingArchive: true
-
           - task: PublishBuildArtifacts@1
             displayName: Publish
             inputs:
