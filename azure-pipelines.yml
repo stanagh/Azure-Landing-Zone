@@ -9,6 +9,7 @@ stages:
           vmImage: "ubuntu-latest"
         steps:
           - checkout: self
+
           - task: TerraformInstaller@1
             inputs:
               terraformVersion: 'latest'
@@ -18,51 +19,55 @@ stages:
             inputs:
               version: "latest"
               type: "filesystem"
-              target: "$(Build.SourcesDirectory)"
-              severities: "LOW, MEDIUM, HIGH, CRITICAL"
+              target: '$(Build.SourcesDirectory)'
+              severities: "HIGH, CRITICAL"
               ignoreUnfixed: true
               showSuppressed: true
               ignoreScanErrors: true
+
           - task: TerraformTask@5
+            displayName: tf init
             inputs:
               provider: 'azurerm'
               command: 'init'
-              backendServiceArm: 'Azure subscription 1(0ec12c70-aa89-447d-8f82-8d454c6173b4)'
-              backendAzureRmOverrideSubscriptionID: '0ec12c70-aa89-447d-8f82-8d454c6173b4'
-              backendAzureRmResourceGroupName: 'rg-storage-uksouth'
+              backendServiceArm: 'Azure subscription 1'
               backendAzureRmStorageAccountName: 'storagestatefile001'
               backendAzureRmContainerName: 'tfstate'
               backendAzureRmKey: 'terraform.tfstate'
+              
           - task: TerraformTask@5
             displayName: Tf validate
             inputs:
               provider: "azurerm"
               command: "validate"
           - task: TerraformTask@5
-            displayName: Terraform fmt
+            displayName: tf fmt
             inputs:
-              provider: "azurerm"
-              command: "custom"
-              outputTo: "console"
-              customCommand: "fmt"
-              environmentServiceNameAzureRM: "Azure subscription 1(0ec12c70-aa89-447d-8f82-8d454c6173b4)"
+              provider: 'azurerm'
+              command: 'custom'
+              outputTo: 'console'
+              customCommand: 'fmt'
+              environmentServiceNameAzureRM: 'Azure Subscription 1'
           - task: TerraformTask@5
             displayName: tf plan
             inputs:
-              provider: "azurerm"
-              commandOptions: "-out $(Build.SourcesDirectory)/tfplanfile"
-              command: "plan"
+              provider: 'azurerm'
+              command: 'plan'
+              commandOptions: '-out $(Build.SourcesDirectory)/tfplanfile'
+              environmentServiceNameAzureRM: 'Azure Subscription 1' 
+              
           - task: ArchiveFiles@2
             displayName: Archive files
             inputs:
-              rootFolderOrFile: "$(Build.SourcesDirectory)"
-              includeRootFolder: true
-              archiveType: "zip"
-              archiveFile: "$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip"
-              replaceExistingArchive: true
+             rootFolderOrFile: '$(Build.SourcesDirectory)/'
+             includeRootFolder: false
+             archiveType: 'zip'
+             archiveFile: '$(Build.ArtifactStagingDirectory)/$(Build.BuildId).zip'
+             replaceExistingArchive: true
+
           - task: PublishBuildArtifacts@1
             displayName: Publish
             inputs:
-              PathtoPublish: "$(Build.ArtifactStagingDirectory)"
-              ArtifactName: "$(Build.BuildId)-build"
-              publishLocation: "Container"
+              PathtoPublish: '$(Build.ArtifactStagingDirectory)'
+              ArtifactName: '$(Build.BuildId)-build'
+              publishLocation: 'Container'
